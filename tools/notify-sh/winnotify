@@ -1,0 +1,60 @@
+#!/bin/sh
+set -e
+
+usage() {
+  echo "Usage: winnotify -t <title> -m <message> [-i <icon>] [-f <from>]" >&2
+  exit 1
+}
+
+json_escape() {
+  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g'
+}
+
+# Parse arguments
+title="" message="" icon="" from=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -t|--title)   title="$2";   shift 2 ;;
+    -m|--message) message="$2"; shift 2 ;;
+    -i|--icon)    icon="$2";    shift 2 ;;
+    -f|--from)    from="$2";    shift 2 ;;
+    *) usage ;;
+  esac
+done
+
+if [ -z "$title" ] || [ -z "$message" ]; then
+  usage
+fi
+
+# Resolve endpoint
+config_file="${XDG_CONFIG_HOME:-$HOME/.config}/winnotifier/config"
+
+if [ -z "$WINNOTIFIER_ENDPOINT" ] && [ -f "$config_file" ]; then
+  . "$config_file"
+fi
+
+if [ -z "$WINNOTIFIER_ENDPOINT" ]; then
+  echo "Error: endpoint not configured." >&2
+  echo "Set WINNOTIFIER_ENDPOINT or create $config_file with:" >&2
+  echo "  WINNOTIFIER_ENDPOINT=http://<windows-ip>:8080" >&2
+  exit 1
+fi
+
+# Build JSON payload
+json="{\"title\":\"$(json_escape "$title")\",\"message\":\"$(json_escape "$message")\""
+
+if [ -n "$icon" ]; then
+  json="$json,\"icon\":\"$(json_escape "$icon")\""
+fi
+
+if [ -n "$from" ]; then
+  json="$json,\"from\":\"$(json_escape "$from")\""
+fi
+
+json="$json}"
+
+# Send notification
+curl -s -f -X POST "$WINNOTIFIER_ENDPOINT/notify" \
+  -H "Content-Type: application/json" \
+  -d "$json" > /dev/null
+

@@ -41,20 +41,48 @@ Content-Type: application/json
 
 ## 通知の送り方
 
-### Mac / Linux から (curl)
+### Mac / Linux から (notify スクリプト)
+
+`tools/notify-sh/winnotify` を PATH の通った場所にコピーまたはシンボリックリンクを作成する。
+
+```bash
+cp tools/notify-sh/winnotify ~/.local/bin/winnotify
+```
+
+エンドポイントを設定する。環境変数か設定ファイルのどちらかで指定する。
+
+```bash
+# 環境変数 (.zshrc / .bashrc に追加)
+export WINNOTIFIER_ENDPOINT=http://<WindowsのIP>:8080
+
+# または設定ファイル
+mkdir -p ~/.config/winnotifier
+echo "WINNOTIFIER_ENDPOINT=http://<WindowsのIP>:8080" > ~/.config/winnotifier/config
+```
+
+環境変数が既に設定されている場合は設定ファイルを読み込まない。
+
+```bash
+winnotify -t <title> -m <message> [-i <icon>] [-f <from>]
+```
 
 ```bash
 # 基本
-curl -X POST http://<WindowsのIP>:8080/notify \
-  -H "Content-Type: application/json" \
-  -d '{"title":"デプロイ完了","message":"成功しました"}'
+winnotify -t "ビルド完了" -m "成功しました"
 
 # アイコンと送信元を指定
+winnotify --title "デプロイ完了" --message "本番環境へのデプロイが成功しました" --icon rocket --from "GitHub Actions"
+```
+
+### Mac / Linux から (curl)
+
+```bash
+# JSON 形式
 curl -X POST http://<WindowsのIP>:8080/notify \
   -H "Content-Type: application/json" \
-  -d '{"title":"デプロイ完了","message":"本番環境へのデプロイが成功しました","from":"GitHub Actions","icon":"rocket"}'
+  -d '{"title":"デプロイ完了","message":"成功しました","icon":"rocket","from":"GitHub Actions"}'
 
-# フォーム形式でも可
+# フォーム形式
 curl -X POST http://<WindowsのIP>:8080/notify \
   -d title=デプロイ完了 -d message=成功しました -d icon=rocket
 ```
