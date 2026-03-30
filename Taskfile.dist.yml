@@ -1,0 +1,59 @@
+version: "3"
+
+vars:
+  SLN: WinNotifier.sln
+  SRC_PROJECT: src/WinNotifier.csproj
+  NOTIFY_PROJECT: tools/Notify/Notify.csproj
+  PUBLISH_DIR: publish
+
+tasks:
+  build:
+    desc: Build the solution
+    cmds:
+      - dotnet build {{.SLN}}
+
+  test:
+    desc: Run tests
+    cmds:
+      - dotnet test {{.SLN}}
+
+  publish:
+    desc: Build self-contained single-file exes for distribution
+    cmds:
+      - >-
+        dotnet publish {{.SRC_PROJECT}}
+        -c Release
+        -r win-x64
+        --self-contained
+        -p:PublishSingleFile=true
+        -p:IncludeNativeLibrariesForSelfExtract=true
+        -o {{.PUBLISH_DIR}}
+      - >-
+        dotnet publish {{.NOTIFY_PROJECT}}
+        -c Release
+        -r win-x64
+        --self-contained
+        -p:PublishSingleFile=true
+        -p:IncludeNativeLibrariesForSelfExtract=true
+        -o {{.PUBLISH_DIR}}
+
+  format:
+    desc: Apply dotnet format to fix code style
+    cmds:
+      - dotnet format {{.SLN}}
+
+  format-check:
+    desc: Check code style without making changes
+    cmds:
+      - dotnet format {{.SLN}} --verify-no-changes
+
+  lint:
+    desc: Run Roslyn analyzers
+    cmds:
+      - dotnet format analyzers {{.SLN}} --verify-no-changes
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - dotnet clean {{.SLN}}
+      - cmd: rm -rf {{.PUBLISH_DIR}}

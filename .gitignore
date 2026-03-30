@@ -1,0 +1,31 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## NuGet
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nupkg
+**/[Pp]roject.nuget.cache
+
+## Visual Studio
+.vs/
+*.rsuser
+*.userprefs
+
+## Build results
+publish/
+
+## Test results
+[Tt]est[Rr]esult*/
+TestResult.xml
+
+## Taskfile (local overrides)
+Taskfile.yml
+
+## Claude Code
+.claude/

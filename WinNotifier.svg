@@ -1,0 +1,58 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(128 0) scale(1.2 1) translate(-128 0)">
+    <!-- upper-left arc -->
+    <path
+      d="M92 110
+         C92 90.1177 108.118 74 128 74
+         C130.2 74 132.8 74.5 134.6 75.8"
+      stroke="#0078D4"
+      stroke-width="12"
+      stroke-linecap="round"
+      stroke-linejoin="round"/>
+
+    <!-- right side -->
+    <path
+      d="M166 128
+         V130.048
+         C166 137.371 168.463 144.485 172.959 150.266
+         L179.476 158.644
+         C181.112 160.747 182 163.335 182 166
+         C182 172.627 176.627 178 170 178"
+      stroke="#0078D4"
+      stroke-width="12"
+      stroke-linecap="round"
+      stroke-linejoin="round"/>
+
+    <!-- bottom and left lower side -->
+    <path
+      d="M170 178
+         H88
+         C81.3726 178 76 172.627 76 166
+         C76 163.335 76.8877 160.747 78.5237 158.644
+         L85.0412 150.266
+         C89.5366 144.485 92 137.371 92 130.048
+         V110"
+      stroke="#0078D4"
+      stroke-width="12"
+      stroke-linecap="round"
+      stroke-linejoin="round"/>
+
+    <!-- clapper line -->
+    <line
+      x1="116"
+      y1="192"
+      x2="140"
+      y2="192"
+      stroke="#0078D4"
+      stroke-width="12"
+      stroke-linecap="round"/>
+  </g>
+
+  <!-- windows logo x1.5 -->
+  <g transform="translate(148 62)">
+    <rect x="0"  y="0"  width="24" height="24" rx="3" fill="#0078D4"/>
+    <rect x="30" y="0"  width="24" height="24" rx="3" fill="#0078D4"/>
+    <rect x="0"  y="30" width="24" height="24" rx="3" fill="#0078D4"/>
+    <rect x="30" y="30" width="24" height="24" rx="3" fill="#0078D4"/>
+  </g>
+</svg>

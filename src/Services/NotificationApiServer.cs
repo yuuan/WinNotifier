@@ -1,0 +1,126 @@
+using System.Net.Http.Headers;
+using System.Text;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using WinNotifier.Interfaces;
+using WinNotifier.Models;
+
+namespace WinNotifier.Services;
+
+public class NotificationApiServer : IHttpServerService
+{
+    private readonly INotificationService _notificationService;
+    private readonly int _port;
+    private WebApplication? _app;
+    private string? _resolvedUrl;
+
+    public string ListenUrl => _resolvedUrl ?? $"http://0.0.0.0:{_port}";
+
+    public NotificationApiServer(INotificationService notificationService, int port = 8080)
+    {
+        _notificationService = notificationService;
+        _port = port;
+    }
+
+    public async Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseUrls($"http://0.0.0.0:{_port}");
+        builder.Logging.SetMinimumLevel(LogLevel.Warning);
+
+        _app = builder.Build();
+
+        _app.MapPost("/notify", async (HttpRequest httpRequest) =>
+        {
+            var request = await ParseRequestAsync(httpRequest);
+            if (request is null)
+                return Results.BadRequest(new { errors = new[] { "Invalid request body." } });
+
+            var errors = request.Validate();
+            if (errors.Count > 0)
+                return Results.BadRequest(new { errors });
+
+            await _notificationService.ShowAsync(request);
+            return Results.Ok(new { status = "sent" });
+        })
+        .Accepts<NotificationRequest>("application/json", "application/x-www-form-urlencoded");
+
+        await _app.StartAsync(cancellationToken);
+
+        var addresses = _app.Services.GetRequiredService<IServer>()
+            .Features.Get<IServerAddressesFeature>();
+        if (addresses?.Addresses.Count > 0)
+            _resolvedUrl = addresses.Addresses.First();
+    }
+
+    private static async Task<NotificationRequest?> ParseRequestAsync(HttpRequest httpRequest)
+    {
+        var contentType = httpRequest.ContentType ?? "";
+
+        if (contentType.Contains("application/json"))
+        {
+            return await httpRequest.ReadFromJsonAsync<NotificationRequest>();
+        }
+
+        if (contentType.Contains("application/x-www-form-urlencoded"))
+        {
+            var encoding = GetEncodingFromContentType(contentType);
+            using var reader = new StreamReader(httpRequest.Body, encoding);
+            var body = await reader.ReadToEndAsync();
+            var fields = ParseFormBody(body);
+            return new NotificationRequest
+            {
+                Title = fields.GetValueOrDefault("title"),
+                Message = fields.GetValueOrDefault("message"),
+                From = fields.GetValueOrDefault("from"),
+                Icon = fields.GetValueOrDefault("icon")
+            };
+        }
+
+        return null;
+    }
+
+    private static Encoding GetEncodingFromContentType(string contentType)
+    {
+        try
+        {
+            var mediaType = MediaTypeHeaderValue.Parse(contentType);
+            if (!string.IsNullOrEmpty(mediaType.CharSet))
+                return Encoding.GetEncoding(mediaType.CharSet);
+        }
+        catch
+        {
+            // ignore parse errors, fall through to default
+        }
+        return Encoding.UTF8;
+    }
+
+    private static Dictionary<string, string> ParseFormBody(string body)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in body.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var index = pair.IndexOf('=');
+            if (index < 0) continue;
+            var key = pair[..index];
+            var value = pair[(index + 1)..];
+            result[key] = value;
+        }
+        return result;
+    }
+
+    public async Task StopAsync()
+    {
+        if (_app is not null)
+        {
+            await _app.StopAsync();
+            await _app.DisposeAsync();
+            _app = null;
+        }
+    }
+}
