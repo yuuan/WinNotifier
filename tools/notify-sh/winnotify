@@ -1,8 +1,56 @@
 #!/bin/sh
 set -e
 
+config_file="${XDG_CONFIG_HOME:-$HOME/.config}/winnotifier/config"
+
+show_help() {
+  cat <<HELP
+Usage: winnotify -t <title> -m <message> [-i <icon>] [-f <from>]
+
+Options:
+  -t, --title    Notification title (required)
+  -m, --message  Notification message (required)
+  -i, --icon     Emoji icon (e.g. rocket, :bell:)
+  -f, --from     Sender name
+  -h, --help     Show this help
+  --init         Create a sample config file
+  --configure    Open the config file in an editor
+
+Config:
+  File: $config_file
+  Env:  WINNOTIFIER_ENDPOINT, WINNOTIFIER_TOKEN
+HELP
+  exit 0
+}
+
+open_config() {
+  if [ ! -f "$config_file" ]; then
+    echo "Config file not found: $config_file" >&2
+    echo "Run 'winnotify --init' to create one." >&2
+    exit 1
+  fi
+  editor="${VISUAL:-${EDITOR:-vi}}"
+  exec "$editor" "$config_file"
+}
+
+init_config() {
+  if [ -f "$config_file" ]; then
+    echo "Config file already exists: $config_file" >&2
+    exit 1
+  fi
+  mkdir -p "$(dirname "$config_file")"
+  cat > "$config_file" <<'EOF'
+# WinNotifier config
+endpoint=http://localhost:8080
+token=
+EOF
+  echo "Created: $config_file"
+  exit 0
+}
+
 usage() {
   echo "Usage: winnotify -t <title> -m <message> [-i <icon>] [-f <from>]" >&2
+  echo "Try 'winnotify --help' for more information." >&2
   exit 1
 }
 
@@ -14,6 +62,9 @@ json_escape() {
 title="" message="" icon="" from=""
 while [ $# -gt 0 ]; do
   case "$1" in
+    -h|--help)    show_help ;;
+    --init)       init_config ;;
+    --configure)  open_config ;;
     -t|--title)   title="$2";   shift 2 ;;
     -m|--message) message="$2"; shift 2 ;;
     -i|--icon)    icon="$2";    shift 2 ;;
@@ -26,17 +77,31 @@ if [ -z "$title" ] || [ -z "$message" ]; then
   usage
 fi
 
-# Resolve endpoint
-config_file="${XDG_CONFIG_HOME:-$HOME/.config}/winnotifier/config"
+# Load config (file first, then env vars override)
+endpoint="" token=""
 
-if [ -z "$WINNOTIFIER_ENDPOINT" ] && [ -f "$config_file" ]; then
+if [ -f "$config_file" ]; then
   . "$config_file"
 fi
 
-if [ -z "$WINNOTIFIER_ENDPOINT" ]; then
-  echo "Error: endpoint not configured." >&2
-  echo "Set WINNOTIFIER_ENDPOINT or create $config_file with:" >&2
-  echo "  WINNOTIFIER_ENDPOINT=http://<windows-ip>:8080" >&2
+endpoint="${WINNOTIFIER_ENDPOINT:-$endpoint}"
+token="${WINNOTIFIER_TOKEN:-$token}"
+
+if [ -z "$endpoint" ]; then
+  cat >&2 <<MSG
+Error: endpoint not configured.
+
+Option 1: Create a config file
+  mkdir -p "$(dirname "$config_file")"
+  cat > "$config_file" <<'EOF'
+  endpoint=http://<windows-ip>:8080
+  token=<your-token>
+  EOF
+
+Option 2: Set environment variables
+  export WINNOTIFIER_ENDPOINT=http://<windows-ip>:8080
+  export WINNOTIFIER_TOKEN=<your-token>
+MSG
   exit 1
 fi
 
@@ -53,8 +118,13 @@ fi
 
 json="$json}"
 
+# Build curl auth option
+auth_opt=""
+if [ -n "$token" ]; then
+  auth_opt="-u :$token"
+fi
+
 # Send notification
-curl -s -f -X POST "$WINNOTIFIER_ENDPOINT/notify" \
+curl -s -f $auth_opt -X POST "$endpoint/notify" \
   -H "Content-Type: application/json" \
   -d "$json" > /dev/null
-

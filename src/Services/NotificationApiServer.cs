@@ -16,15 +16,17 @@ public class NotificationApiServer : IHttpServerService
 {
     private readonly INotificationService _notificationService;
     private readonly int _port;
+    private readonly string? _token;
     private WebApplication? _app;
     private string? _resolvedUrl;
 
     public string ListenUrl => _resolvedUrl ?? $"http://0.0.0.0:{_port}";
 
-    public NotificationApiServer(INotificationService notificationService, int port = 8080)
+    public NotificationApiServer(INotificationService notificationService, int port = 8080, string? token = null)
     {
         _notificationService = notificationService;
         _port = port;
+        _token = token;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -34,6 +36,22 @@ public class NotificationApiServer : IHttpServerService
         builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
         _app = builder.Build();
+
+        if (!string.IsNullOrEmpty(_token))
+        {
+            _app.Use(async (context, next) =>
+            {
+                var authHeader = context.Request.Headers.Authorization.ToString();
+                if (!ValidateBasicAuth(authHeader, _token))
+                {
+                    context.Response.StatusCode = 401;
+                    context.Response.Headers["WWW-Authenticate"] = "Basic realm=\"WinNotifier\"";
+                    await context.Response.WriteAsJsonAsync(new { error = "Unauthorized" });
+                    return;
+                }
+                await next();
+            });
+        }
 
         _app.MapPost("/notify", async (HttpRequest httpRequest) =>
         {
@@ -112,6 +130,27 @@ public class NotificationApiServer : IHttpServerService
             result[key] = value;
         }
         return result;
+    }
+
+    private static bool ValidateBasicAuth(string authHeader, string token)
+    {
+        if (!authHeader.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        try
+        {
+            var credentials = Encoding.UTF8.GetString(Convert.FromBase64String(authHeader[6..]));
+            var colonIndex = credentials.IndexOf(':');
+            if (colonIndex < 0)
+                return false;
+
+            var password = credentials[(colonIndex + 1)..];
+            return password == token;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async Task StopAsync()

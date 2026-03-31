@@ -4,7 +4,8 @@ using System.Text.Json.Serialization;
 namespace WinNotifier;
 
 internal sealed record Config(
-    [property: JsonPropertyName("port")] int Port = 8080
+    [property: JsonPropertyName("port")] int Port = 8080,
+    [property: JsonPropertyName("token")] string? Token = null
 )
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
@@ -37,7 +38,7 @@ internal sealed record Config(
             return (false, configPath);
         }
 
-        string json = JsonSerializer.Serialize(new Config(), JsonOptions);
+        string json = JsonSerializer.Serialize(new Config(Token: Guid.NewGuid().ToString()), JsonOptions);
         File.WriteAllText(configPath, json);
         return (true, configPath);
     }

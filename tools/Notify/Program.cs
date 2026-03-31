@@ -27,6 +27,12 @@ var json = JsonSerializer.Serialize(
     payload.Where(kv => kv.Value is not null).ToDictionary(kv => kv.Key, kv => kv.Value));
 
 using var client = new HttpClient();
+if (!string.IsNullOrEmpty(config.Token))
+{
+    var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($":{config.Token}"));
+    client.DefaultRequestHeaders.Authorization =
+        new AuthenticationHeaderValue("Basic", credentials);
+}
 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
 try
@@ -80,7 +86,8 @@ static (string? title, string? message, string? icon, string? from) ParseArgs(st
 }
 
 sealed record Config(
-    [property: JsonPropertyName("port")] int Port = 8080
+    [property: JsonPropertyName("port")] int Port = 8080,
+    [property: JsonPropertyName("token")] string? Token = null
 )
 {
     public static Config Load()
