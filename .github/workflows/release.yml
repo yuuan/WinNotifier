@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Install Task
+        uses: go-task/setup-task@v2
+
+      - name: Publish
+        run: task publish
+
+      - name: Package
+        run: |
+          $version = "${{ github.ref_name }}"
+          Compress-Archive -Path publish/WinNotifier.exe,publish/Notify.exe,tools/notify-sh/winnotify,tools/notify-sh/winnotify.ps1,README.md,LICENSE -DestinationPath "publish/WinNotifier-${version}-win-x64.zip"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: publish/WinNotifier-*.zip
+          generate_release_notes: true
