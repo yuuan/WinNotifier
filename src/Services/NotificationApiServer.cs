@@ -15,6 +15,7 @@ namespace WinNotifier.Services;
 public class NotificationApiServer : IHttpServerService
 {
     private readonly INotificationService _notificationService;
+    private readonly IEmojiResolver _emojiResolver;
     private readonly int _port;
     private readonly string? _token;
     private WebApplication? _app;
@@ -22,9 +23,10 @@ public class NotificationApiServer : IHttpServerService
 
     public string ListenUrl => _resolvedUrl ?? $"http://0.0.0.0:{_port}";
 
-    public NotificationApiServer(INotificationService notificationService, int port = 8080, string? token = null)
+    public NotificationApiServer(INotificationService notificationService, IEmojiResolver emojiResolver, int port = 8080, string? token = null)
     {
         _notificationService = notificationService;
+        _emojiResolver = emojiResolver;
         _port = port;
         _token = token;
     }
@@ -41,17 +43,45 @@ public class NotificationApiServer : IHttpServerService
         {
             _app.Use(async (context, next) =>
             {
-                var authHeader = context.Request.Headers.Authorization.ToString();
-                if (!ValidateBasicAuth(authHeader, _token))
+                if (context.Request.Path.StartsWithSegments("/notify"))
                 {
-                    context.Response.StatusCode = 401;
-                    context.Response.Headers["WWW-Authenticate"] = "Basic realm=\"WinNotifier\"";
-                    await context.Response.WriteAsJsonAsync(new { error = "Unauthorized" });
-                    return;
+                    var authHeader = context.Request.Headers.Authorization.ToString();
+                    if (!ValidateBasicAuth(authHeader, _token))
+                    {
+                        context.Response.StatusCode = 401;
+                        context.Response.Headers["WWW-Authenticate"] = "Basic realm=\"WinNotifier\"";
+                        await context.Response.WriteAsJsonAsync(new { error = "Unauthorized" });
+                        return;
+                    }
                 }
                 await next();
             });
         }
+
+        _app.MapGet("/icons", (HttpRequest httpRequest) =>
+        {
+            var icons = _emojiResolver.GetAll();
+            var accept = httpRequest.Headers.Accept.ToString();
+
+            if (accept.Contains("text/plain"))
+            {
+                var sb = new StringBuilder();
+                foreach (var group in icons.GroupBy(i => i.Category))
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"  {group.Key}");
+                    sb.AppendLine($"  {new string('-', group.Key.Length)}");
+                    foreach (var icon in group)
+                        sb.AppendLine($"    {icon.Emoji}  {string.Join(", ", icon.Aliases)}");
+                }
+                return Results.Text(sb.ToString(), "text/plain; charset=utf-8");
+            }
+
+            var grouped = icons
+                .GroupBy(i => i.Category)
+                .Select(g => new { category = g.Key, icons = g.Select(i => new { i.Emoji, i.Aliases }) });
+            return Results.Ok(grouped);
+        });
 
         _app.MapPost("/notify", async (HttpRequest httpRequest) =>
         {

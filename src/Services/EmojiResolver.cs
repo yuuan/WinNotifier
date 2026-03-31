@@ -12,6 +12,7 @@ public class EmojiResolver : IEmojiResolver
     private readonly HttpClient _httpClient;
     private readonly string _cacheDirectory;
     private readonly Lazy<Dictionary<string, string>> _shortcodeToUnicode;
+    private readonly Lazy<List<EmojiIcon>> _allIcons;
 
     private const string CdnBaseUrl = "https://cdn.jsdelivr.net/gh/jdecked/twemoji@latest/assets/72x72/";
 
@@ -21,7 +22,10 @@ public class EmojiResolver : IEmojiResolver
         _cacheDirectory = cacheDirectory
             ?? Path.Combine(Path.GetDirectoryName(Environment.ProcessPath) ?? ".", "emoji-cache");
         _shortcodeToUnicode = new Lazy<Dictionary<string, string>>(LoadShortcodeMap);
+        _allIcons = new Lazy<List<EmojiIcon>>(LoadAllIcons);
     }
+
+    public IReadOnlyList<EmojiIcon> GetAll() => _allIcons.Value;
 
     public async Task<string?> ResolveAsync(string iconInput, CancellationToken ct = default)
     {
@@ -127,8 +131,20 @@ public class EmojiResolver : IEmojiResolver
         return map;
     }
 
+    private static List<EmojiIcon> LoadAllIcons()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        using var stream = assembly.GetManifestResourceStream("WinNotifier.emoji.json");
+        if (stream is null)
+            return [];
+
+        var entries = JsonSerializer.Deserialize<List<EmojiEntry>>(stream) ?? [];
+        return entries.Select(e => new EmojiIcon(e.Emoji, e.Category ?? "Other", e.Aliases)).ToList();
+    }
+
     private sealed record EmojiEntry(
         [property: JsonPropertyName("emoji")] string Emoji,
-        [property: JsonPropertyName("aliases")] List<string> Aliases
+        [property: JsonPropertyName("aliases")] List<string> Aliases,
+        [property: JsonPropertyName("category")] string? Category
     );
 }

@@ -16,7 +16,7 @@ public class NotificationApiServerTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        _server = new NotificationApiServer(_mockNotifier, port: 0);
+        _server = new NotificationApiServer(_mockNotifier, Substitute.For<IEmojiResolver>(), port: 0);
         await _server.StartAsync();
         _client = new HttpClient { BaseAddress = new Uri(_server.ListenUrl.Replace("0.0.0.0", "localhost")) };
     }

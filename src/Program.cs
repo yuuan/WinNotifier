@@ -19,7 +19,7 @@ internal static class Program
         var httpClient = new HttpClient();
         IEmojiResolver emojiResolver = new EmojiResolver(httpClient);
         INotificationService notifier = new ToastNotificationService(emojiResolver);
-        IHttpServerService server = new NotificationApiServer(notifier, port: config.Port, token: config.Token);
+        IHttpServerService server = new NotificationApiServer(notifier, emojiResolver, port: config.Port, token: config.Token);
 
         Application.Run(new TrayApplicationContext(server, config.Token));
     }
