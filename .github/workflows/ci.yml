@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "*.md"
+      - "*.svg"
+      - "*.png"
+      - LICENSE
+      - .github/workflows/release.yml
+  pull_request:
+    paths-ignore:
+      - "*.md"
+      - "*.svg"
+      - "*.png"
+      - LICENSE
+      - .github/workflows/release.yml
+
+jobs:
+  format:
+    name: Format
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+      - run: dotnet format WinNotifier.sln --verify-no-changes
+
+  lint:
+    name: Lint
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+      - run: dotnet build WinNotifier.sln -c Release -warnaserror
+
+  test:
+    name: Test
+    runs-on: windows-latest
+    needs: [format, lint]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+      - run: dotnet test WinNotifier.sln
+
+  build:
+    name: Build
+    runs-on: windows-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+      - uses: go-task/setup-task@v2
+      - run: task publish
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WinNotifier
+          path: |
+            publish/WinNotifier.exe
+            publish/Notify.exe
