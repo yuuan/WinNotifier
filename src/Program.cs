@@ -21,6 +21,6 @@ internal static class Program
         INotificationService notifier = new ToastNotificationService(emojiResolver);
         IHttpServerService server = new NotificationApiServer(notifier, port: config.Port, token: config.Token);
 
-        Application.Run(new TrayApplicationContext(server));
+        Application.Run(new TrayApplicationContext(server, config.Token));
     }
 }

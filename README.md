@@ -1,12 +1,12 @@
 # WinNotifier
 
-LAN 内の Linux / Mac から Windows 11 へ通知を送るツール。
+LAN 内の他のマシンから送られた通知を Windows 11 ネイティブのトースト通知として表示するツール。
 
-タスクトレイに常駐し、HTTP API サーバーを立てる。通知送信 API が叩かれると Windows 11 ネイティブのトースト通知として表示する。
+タスクトレイに常駐し、HTTP API サーバーを立てる。通知送信 API が叩かれると通知を表示する。
 
-## セットアップ
+## サーバー (Windows)
 
-### Windows (サーバー)
+### セットアップ
 
 `WinNotifier.exe` を起動するとタスクトレイに常駐し、ポート 8080 (デフォルト) で HTTP リクエストを待ち受ける。
 
@@ -22,13 +22,41 @@ LAN 内の Linux / Mac から Windows 11 へ通知を送るツール。
 - `port` — 待ち受けポート番号
 - `token` — Basic 認証トークン。設定すると認証が有効になる。`null` または省略で認証なし
 
-### Mac / Linux (クライアント)
+### API
+
+```
+POST /notify
+Content-Type: application/json
+```
+
+`token` が設定されている場合は Basic 認証が必要。ユーザー名は任意 (空でも可)、パスワードにトークンを指定する。
+
+#### パラメータ
+
+| 名前 | 必須 | 説明 |
+|------|------|------|
+| `title` | Yes | 通知のタイトル |
+| `message` | Yes | 通知の本文 |
+| `from` | No | 送信元アプリケーション名 (通知の下部に小さく表示) |
+| `icon` | No | 絵文字アイコン (後述) |
+
+#### レスポンス
+
+- `200 OK` — `{"status":"sent"}`
+- `400 Bad Request` — バリデーションエラー
+- `401 Unauthorized` — 認証失敗
+
+## クライアント
+
+### Mac / Linux (winnotify)
+
+#### インストール
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/yuuan/WinNotifier/main/tools/notify-sh/winnotify -o ~/.local/bin/winnotify && chmod +x ~/.local/bin/winnotify
 ```
 
-初期設定:
+#### 初期設定
 
 ```bash
 winnotify --init
@@ -45,39 +73,7 @@ token=<config.json の token の値>
 
 環境変数 `WINNOTIFIER_ENDPOINT` と `WINNOTIFIER_TOKEN` でも設定可能。設定されている場合はファイルより優先される。
 
-### Windows (クライアント)
-
-`Notify.exe` を `WinNotifier.exe` と同じディレクトリに配置する。`config.json` のポート番号とトークンを自動で参照する。
-
-PowerShell 用の `winnotify.ps1` も `tools/notify-sh/` に用意されている。
-
-## API
-
-```
-POST /notify
-Content-Type: application/json
-```
-
-`token` が設定されている場合は Basic 認証が必要。ユーザー名は任意 (空でも可)、パスワードにトークンを指定する。
-
-### パラメータ
-
-| 名前 | 必須 | 説明 |
-|------|------|------|
-| `title` | Yes | 通知のタイトル |
-| `message` | Yes | 通知の本文 |
-| `from` | No | 送信元アプリケーション名 (通知の下部に小さく表示) |
-| `icon` | No | 絵文字アイコン (Twemoji で表示。`:rocket:`、`rocket`、`🚀` のいずれかの形式) |
-
-### レスポンス
-
-- `200 OK` — `{"status":"sent"}`
-- `400 Bad Request` — バリデーションエラー
-- `401 Unauthorized` — 認証失敗
-
-## 通知の送り方
-
-### Mac / Linux から (winnotify)
+#### 使い方
 
 ```bash
 winnotify -t <title> -m <message> [-i <icon>] [-f <from>]
@@ -91,7 +87,9 @@ winnotify -t "ビルド完了" -m "成功しました"
 winnotify --title "デプロイ完了" --message "本番環境へのデプロイが成功しました" --icon rocket --from "GitHub Actions"
 ```
 
-### Windows から (Notify.exe)
+### 同一マシンから (Notify.exe)
+
+`Notify.exe` を `WinNotifier.exe` と同じディレクトリに配置する。`config.json` のポート番号とトークンを自動で参照する。
 
 ```
 Notify.exe -t <title> -m <message> [-i <icon>] [-f <from>]
@@ -105,7 +103,17 @@ Notify.exe -t "ビルド完了" -m "成功しました"
 Notify.exe --title "デプロイ完了" --message "本番環境へのデプロイが成功しました" --icon rocket --from "GitHub Actions"
 ```
 
-### Mac / Linux から (curl)
+### 別の Windows マシンから (winnotify.ps1)
+
+`tools/notify-sh/winnotify.ps1` を送信元の Windows マシンに配置する。設定ファイルや環境変数の形式は Mac / Linux 版の `winnotify` と同じ。
+
+```powershell
+.\winnotify.ps1 -t "ビルド完了" -m "成功しました" -i rocket -f "Build Server"
+```
+
+`-Init` で設定ファイルを作成、`-Configure` でエディタで開ける。
+
+### curl
 
 ```bash
 # JSON 形式
@@ -118,6 +126,18 @@ curl -u :<token> -X POST http://<WindowsのIP>:8080/notify \
   -d title=デプロイ完了 -d message=成功しました -d icon=rocket
 ```
 
+#### 補足: Windows の curl で日本語が文字化けする場合
+
+Windows の curl はコンソールのコードページ (日本語環境では Shift_JIS) でデータを送信する。フォーム形式で日本語を送る場合は Content-Type ヘッダーで文字コードを明示する。
+
+```powershell
+curl -u :<token> -X POST http://localhost:8080/notify `
+  -H "Content-Type: application/x-www-form-urlencoded; charset=shift_jis" `
+  -d "title=テスト" -d "message=こんにちは"
+```
+
+JSON 形式であればこの問題は発生しない。Windows からの送信には `Notify.exe` の利用を推奨する。
+
 ## 絵文字アイコン
 
 `icon` パラメータに以下のいずれかの形式で絵文字を指定できる。
@@ -129,15 +149,3 @@ curl -u :<token> -X POST http://<WindowsのIP>:8080/notify \
 [jdecked/twemoji](https://github.com/jdecked/twemoji) の PNG 画像を CDN からダウンロードして表示する。ダウンロードした画像は exe と同じディレクトリの `emoji-cache/` にキャッシュされる。
 
 ショートコードの一覧は [GitHub Emoji Cheat Sheet](https://github.com/ikatyang/emoji-cheat-sheet) を参照。
-
-## 補足: Windows の curl で日本語が文字化けする場合
-
-Windows の curl はコンソールのコードページ (日本語環境では Shift_JIS) でデータを送信する。フォーム形式で日本語を送る場合は Content-Type ヘッダーで文字コードを明示する。
-
-```powershell
-curl -u :<token> -X POST http://localhost:8080/notify `
-  -H "Content-Type: application/x-www-form-urlencoded; charset=shift_jis" `
-  -d "title=テスト" -d "message=こんにちは"
-```
-
-JSON 形式であればこの問題は発生しない。Windows からの送信には `Notify.exe` の利用を推奨する。

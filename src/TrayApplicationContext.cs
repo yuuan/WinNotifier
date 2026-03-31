@@ -8,11 +8,13 @@ public class TrayApplicationContext : ApplicationContext
 {
     private readonly NotifyIcon _trayIcon;
     private readonly IHttpServerService _server;
+    private readonly string? _token;
     private readonly CancellationTokenSource _cts = new();
 
-    public TrayApplicationContext(IHttpServerService server)
+    public TrayApplicationContext(IHttpServerService server, string? token)
     {
         _server = server;
+        _token = token;
 
         _trayIcon = new NotifyIcon
         {
@@ -52,8 +54,17 @@ public class TrayApplicationContext : ApplicationContext
     private ContextMenuStrip BuildMenu()
     {
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Exit", null, OnExit);
+        var copyItem = menu.Items.Add("トークンをコピー (&C)", null, OnCopyToken);
+        copyItem.Enabled = !string.IsNullOrEmpty(_token);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("終了 (&X)", null, OnExit);
         return menu;
+    }
+
+    private void OnCopyToken(object? sender, EventArgs e)
+    {
+        if (!string.IsNullOrEmpty(_token))
+            Clipboard.SetText(_token);
     }
 
     private async void OnExit(object? sender, EventArgs e)
