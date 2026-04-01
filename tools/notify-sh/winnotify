@@ -1,7 +1,12 @@
 #!/bin/sh
 set -e
 
-config_file="${XDG_CONFIG_HOME:-$HOME/.config}/winnotifier/config"
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/winnotifier"
+config_file="$config_dir/config"
+version_file="$config_dir/version"
+repo_owner="yuuan"
+repo_name="WinNotifier"
+script_path="tools/notify-sh/winnotify"
 
 show_help() {
   cat <<HELP
@@ -15,6 +20,9 @@ Options:
   -h, --help     Show this help
   --init         Create a sample config file
   --configure    Open the config file in an editor
+  --icons        Show available emoji icons
+  --version      Show installed version (commit hash)
+  --self-update  Update to the latest version from GitHub
 
 Config:
   File: $config_file
@@ -31,6 +39,92 @@ open_config() {
   fi
   editor="${VISUAL:-${EDITOR:-vi}}"
   exec "$editor" "$config_file"
+}
+
+show_icons() {
+  # Load config to get endpoint
+  endpoint="" token=""
+  if [ -f "$config_file" ]; then
+    . "$config_file"
+  fi
+  endpoint="${WINNOTIFIER_ENDPOINT:-$endpoint}"
+
+  if [ -z "$endpoint" ]; then
+    echo "Error: endpoint not configured. Run 'winnotify --init' first." >&2
+    exit 1
+  fi
+
+  curl -sS -H "Accept: text/plain" "$endpoint/icons" 2>/dev/null | "${PAGER:-less}"
+  exit 0
+}
+
+show_version() {
+  if [ -f "$version_file" ]; then
+    hash=$(cat "$version_file")
+    echo "winnotify ${hash}"
+  else
+    echo "winnotify unknown"
+  fi
+  exit 0
+}
+
+update_self() {
+  script="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+
+  # Get latest commit hash from GitHub API
+  latest=$(curl -sS "https://api.github.com/repos/${repo_owner}/${repo_name}/commits/main" \
+    -H "Accept: application/vnd.github.sha" 2>/dev/null) || {
+    echo "Error: failed to check for updates." >&2
+    exit 1
+  }
+
+  if [ -z "$latest" ] || [ ${#latest} -ne 40 ]; then
+    echo "Error: failed to get latest version from GitHub." >&2
+    exit 1
+  fi
+
+  # Compare with installed version
+  current=""
+  if [ -f "$version_file" ]; then
+    current=$(cat "$version_file")
+  fi
+
+  if [ "$current" = "$latest" ]; then
+    echo "Already up to date. (${latest})"
+    exit 0
+  fi
+
+  # Download latest script to a temp file
+  tmpfile=$(mktemp) || {
+    echo "Error: failed to create temporary file." >&2
+    exit 1
+  }
+  trap 'rm -f "$tmpfile"' EXIT
+
+  curl -sS -f "https://raw.githubusercontent.com/${repo_owner}/${repo_name}/main/${script_path}" \
+    -o "$tmpfile" 2>/dev/null || {
+    echo "Error: failed to download update." >&2
+    exit 1
+  }
+
+  if [ ! -s "$tmpfile" ]; then
+    echo "Error: downloaded file is empty." >&2
+    exit 1
+  fi
+
+  chmod +x "$tmpfile"
+  mv "$tmpfile" "$script" || {
+    echo "Error: failed to replace script. Try: sudo winnotify --update" >&2
+    exit 1
+  }
+  trap - EXIT
+
+  # Save new version
+  mkdir -p "$config_dir"
+  printf '%s\n' "$latest" > "$version_file"
+
+  echo "Updated: ${current:-unknown} -> ${latest}"
+  exit 0
 }
 
 init_config() {
@@ -65,6 +159,9 @@ while [ $# -gt 0 ]; do
     -h|--help)    show_help ;;
     --init)       init_config ;;
     --configure)  open_config ;;
+    --icons)      show_icons ;;
+    --version)    show_version ;;
+    --self-update) update_self ;;
     -t|--title)   title="$2";   shift 2 ;;
     -m|--message) message="$2"; shift 2 ;;
     -i|--icon)    icon="$2";    shift 2 ;;
