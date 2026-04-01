@@ -78,8 +78,13 @@ if [ -n "$icon" ]; then
   set -- "$@" -i "$icon"
 fi
 
-if [ -n "$app_name" ]; then
+hostname="$(hostname 2>/dev/null || echo "")"
+if [ -n "$app_name" ] && [ -n "$hostname" ]; then
+  set -- "$@" -f "$app_name on $hostname"
+elif [ -n "$app_name" ]; then
   set -- "$@" -f "$app_name"
+elif [ -n "$hostname" ]; then
+  set -- "$@" -f "$hostname"
 fi
 
 rc=0
