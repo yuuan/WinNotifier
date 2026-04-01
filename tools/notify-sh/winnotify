@@ -119,22 +119,20 @@ update_self() {
   }
   trap - EXIT
 
-  # Update winnotify-send if it exists next to winnotify
+  # Install or update winnotify-send
   script_dir="$(dirname "$script")"
   send_script="$script_dir/winnotify-send"
-  if [ -f "$send_script" ]; then
-    send_tmpfile=$(mktemp) || {
-      echo "Warning: failed to create temporary file for winnotify-send." >&2
-    }
-    if [ -n "$send_tmpfile" ]; then
-      if curl -sS -f "https://raw.githubusercontent.com/${repo_owner}/${repo_name}/main/tools/notify-sh/winnotify-send" \
-        -o "$send_tmpfile" 2>/dev/null && [ -s "$send_tmpfile" ]; then
-        chmod +x "$send_tmpfile"
-        mv "$send_tmpfile" "$send_script" || echo "Warning: failed to update winnotify-send." >&2
-      else
-        rm -f "$send_tmpfile"
-        echo "Warning: failed to download winnotify-send update." >&2
-      fi
+  send_tmpfile=$(mktemp) || {
+    echo "Warning: failed to create temporary file for winnotify-send." >&2
+  }
+  if [ -n "$send_tmpfile" ]; then
+    if curl -sS -f "https://raw.githubusercontent.com/${repo_owner}/${repo_name}/main/tools/notify-sh/winnotify-send" \
+      -o "$send_tmpfile" 2>/dev/null && [ -s "$send_tmpfile" ]; then
+      chmod +x "$send_tmpfile"
+      mv "$send_tmpfile" "$send_script" || echo "Warning: failed to install winnotify-send." >&2
+    else
+      rm -f "$send_tmpfile"
+      echo "Warning: failed to download winnotify-send." >&2
     fi
   fi
 
