@@ -26,7 +26,7 @@ Options:
 
 Config:
   File: $config_file
-  Env:  WINNOTIFIER_ENDPOINT, WINNOTIFIER_TOKEN
+  Env:  WINNOTIFIER_ENDPOINT, WINNOTIFIER_TOKEN, WINNOTIFIER_TIMEOUT
 HELP
   exit 0
 }
@@ -156,6 +156,7 @@ init_config() {
 # WinNotifier config
 endpoint=http://localhost:8080
 token=
+timeout=10
 EOF
   echo "Created: $config_file"
   exit 0
@@ -202,6 +203,7 @@ fi
 
 endpoint="${WINNOTIFIER_ENDPOINT:-$endpoint}"
 token="${WINNOTIFIER_TOKEN:-$token}"
+timeout="${WINNOTIFIER_TIMEOUT:-${timeout:-10}}"
 
 if [ -z "$endpoint" ]; then
   cat >&2 <<MSG
@@ -241,6 +243,6 @@ if [ -n "$token" ]; then
 fi
 
 # Send notification
-curl -sS -f $auth_opt -X POST "$endpoint/notify" \
+curl -sS -f --max-time "$timeout" $auth_opt -X POST "$endpoint/notify" \
   -H "Content-Type: application/json" \
   -d "$json" > /dev/null
