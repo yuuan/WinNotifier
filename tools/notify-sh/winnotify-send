@@ -1,0 +1,84 @@
+#!/bin/sh
+# notify-send wrapper that forwards notifications to winnotify
+# https://github.com/yuuan/WinNotifier
+set -e
+
+self="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+
+install_as_notify_send() {
+  link_path="$(dirname "$self")/notify-send"
+  if [ -e "$link_path" ]; then
+    echo "Error: ${link_path} already exists." >&2
+    exit 1
+  fi
+  ln -s "$self" "$link_path"
+  echo "Created: ${link_path} -> $(basename "$self")"
+  exit 0
+}
+
+uninstall_notify_send() {
+  link_path="$(dirname "$self")/notify-send"
+  if [ ! -L "$link_path" ]; then
+    echo "Error: ${link_path} is not a symlink or does not exist." >&2
+    exit 1
+  fi
+  rm "$link_path"
+  echo "Removed: ${link_path}"
+  exit 0
+}
+
+app_name="" icon=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --install)  install_as_notify_send ;;
+    --uninstall) uninstall_notify_send ;;
+    -u|--urgency|-t|--expire-time|-c|--category|-r|--replace-id|-n|--app-icon|-h|--hint|-A|--action|--id-fd|--selected-action-fd|--activation-token-fd)
+      shift 2 ;;
+    -u=*|--urgency=*|-t=*|--expire-time=*|-c=*|--category=*|-r=*|--replace-id=*|-n=*|--app-icon=*|-h=*|--hint=*|-A=*|--action=*)
+      shift ;;
+    -e|--transient|-p|--print-id|-w|--wait)
+      shift ;;
+    -a)       app_name="$2"; shift 2 ;;
+    --app-name) app_name="$2"; shift 2 ;;
+    -a=*|--app-name=*) app_name="${1#*=}"; shift ;;
+    -i)       icon="$2"; shift 2 ;;
+    --icon)   icon="$2"; shift 2 ;;
+    -i=*|--icon=*) icon="${1#*=}"; shift ;;
+    -v|--version)
+      echo "notify-send (winnotify wrapper)"
+      exit 0 ;;
+    -\?|--help)
+      echo "Usage: notify-send [OPTIONS] SUMMARY [BODY]"
+      echo "       winnotify-send --install     Create notify-send symlink"
+      echo "       winnotify-send --uninstall   Remove notify-send symlink"
+      echo "Wrapper around winnotify. See 'winnotify --help' for details."
+      exit 0 ;;
+    --)
+      shift; break ;;
+    -*)
+      shift ;;
+    *)
+      break ;;
+  esac
+done
+
+title="${1:-}"
+body="${2:-}"
+
+if [ -z "$title" ]; then
+  echo "Usage: notify-send [OPTIONS] SUMMARY [BODY]" >&2
+  exit 1
+fi
+
+set -- -t "$title" -m "${body:-$title}"
+
+if [ -n "$icon" ]; then
+  set -- "$@" -i "$icon"
+fi
+
+if [ -n "$app_name" ]; then
+  set -- "$@" -f "$app_name"
+fi
+
+exec winnotify "$@"
