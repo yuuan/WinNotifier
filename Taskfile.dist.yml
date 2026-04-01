@@ -4,6 +4,7 @@ vars:
   SLN: WinNotifier.sln
   SRC_PROJECT: src/WinNotifier.csproj
   NOTIFY_PROJECT: tools/Notify/Notify.csproj
+  ICONDOWNLOADER_PROJECT: tools/IconDownloader/IconDownloader.csproj
   PUBLISH_DIR: publish
 
 tasks:
@@ -30,6 +31,14 @@ tasks:
         -o {{.PUBLISH_DIR}}
       - >-
         dotnet publish {{.NOTIFY_PROJECT}}
+        -c Release
+        -r win-x64
+        --self-contained
+        -p:PublishSingleFile=true
+        -p:IncludeNativeLibrariesForSelfExtract=true
+        -o {{.PUBLISH_DIR}}
+      - >-
+        dotnet publish {{.ICONDOWNLOADER_PROJECT}}
         -c Release
         -r win-x64
         --self-contained

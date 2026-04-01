@@ -16,10 +16,10 @@ internal static class Program
         Config.Init();
         var config = Config.Load();
 
-        var httpClient = new HttpClient();
-        IEmojiResolver emojiResolver = new EmojiResolver(httpClient);
-        INotificationService notifier = new ToastNotificationService(emojiResolver);
-        IHttpServerService server = new NotificationApiServer(notifier, emojiResolver, port: config.Port, token: config.Token);
+        var iconsDir = Path.Combine(Path.GetDirectoryName(Environment.ProcessPath) ?? ".", "icons");
+        IIconResolver iconResolver = new IconResolver(iconsDir, config.Icons?.Mappings, config.Icons?.Themes);
+        INotificationService notifier = new ToastNotificationService(iconResolver);
+        IHttpServerService server = new NotificationApiServer(notifier, iconResolver, port: config.Port, token: config.Token);
 
         Application.Run(new TrayApplicationContext(server, config.Token));
     }

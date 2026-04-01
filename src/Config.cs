@@ -3,9 +3,15 @@ using System.Text.Json.Serialization;
 
 namespace WinNotifier;
 
+internal sealed record IconsConfig(
+    [property: JsonPropertyName("mappings")] List<string>? Mappings = null,
+    [property: JsonPropertyName("themes")] List<string>? Themes = null
+);
+
 internal sealed record Config(
     [property: JsonPropertyName("port")] int Port = 8080,
-    [property: JsonPropertyName("token")] string? Token = null
+    [property: JsonPropertyName("token")] string? Token = null,
+    [property: JsonPropertyName("icons")] IconsConfig? Icons = null
 )
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };

@@ -6,11 +6,11 @@ namespace WinNotifier.Services;
 
 public class ToastNotificationService : INotificationService
 {
-    private readonly IEmojiResolver _emojiResolver;
+    private readonly IIconResolver _iconResolver;
 
-    public ToastNotificationService(IEmojiResolver emojiResolver)
+    public ToastNotificationService(IIconResolver iconResolver)
     {
-        _emojiResolver = emojiResolver;
+        _iconResolver = iconResolver;
     }
 
     public async Task ShowAsync(NotificationRequest request)
@@ -24,7 +24,7 @@ public class ToastNotificationService : INotificationService
 
         if (!string.IsNullOrWhiteSpace(request.Icon))
         {
-            var iconPath = await _emojiResolver.ResolveAsync(request.Icon);
+            var iconPath = await _iconResolver.ResolveAsync(request.Icon);
             if (iconPath is not null)
             {
                 builder.AddAppLogoOverride(

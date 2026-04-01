@@ -20,7 +20,6 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\icon.ico" LogicalName="WinNotifier.icon.ico" />
-    <EmbeddedResource Include="Resources\emoji.json" LogicalName="WinNotifier.emoji.json" />
   </ItemGroup>
 
 </Project>

@@ -15,7 +15,7 @@ namespace WinNotifier.Services;
 public class NotificationApiServer : IHttpServerService
 {
     private readonly INotificationService _notificationService;
-    private readonly IEmojiResolver _emojiResolver;
+    private readonly IIconResolver _iconResolver;
     private readonly int _port;
     private readonly string? _token;
     private WebApplication? _app;
@@ -23,10 +23,10 @@ public class NotificationApiServer : IHttpServerService
 
     public string ListenUrl => _resolvedUrl ?? $"http://0.0.0.0:{_port}";
 
-    public NotificationApiServer(INotificationService notificationService, IEmojiResolver emojiResolver, int port = 8080, string? token = null)
+    public NotificationApiServer(INotificationService notificationService, IIconResolver iconResolver, int port = 8080, string? token = null)
     {
         _notificationService = notificationService;
-        _emojiResolver = emojiResolver;
+        _iconResolver = iconResolver;
         _port = port;
         _token = token;
     }
@@ -60,26 +60,29 @@ public class NotificationApiServer : IHttpServerService
 
         _app.MapGet("/icons", (HttpRequest httpRequest) =>
         {
-            var icons = _emojiResolver.GetAll();
+            var icons = _iconResolver.GetAll();
             var accept = httpRequest.Headers.Accept.ToString();
 
             if (accept.Contains("text/plain"))
             {
                 var sb = new StringBuilder();
-                foreach (var group in icons.GroupBy(i => i.Category))
+                foreach (var group in icons.GroupBy(i => i.Theme))
                 {
                     sb.AppendLine();
                     sb.AppendLine($"  {group.Key}");
                     sb.AppendLine($"  {new string('-', group.Key.Length)}");
                     foreach (var icon in group)
-                        sb.AppendLine($"    {icon.Emoji}  {string.Join(", ", icon.Aliases)}");
+                    {
+                        var names = new[] { icon.Name }.Concat(icon.Aliases);
+                        sb.AppendLine($"    {string.Join(", ", names)}");
+                    }
                 }
                 return Results.Text(sb.ToString(), "text/plain; charset=utf-8");
             }
 
             var grouped = icons
-                .GroupBy(i => i.Category)
-                .Select(g => new { category = g.Key, icons = g.Select(i => new { i.Emoji, i.Aliases }) });
+                .GroupBy(i => i.Theme)
+                .Select(g => new { theme = g.Key, icons = g.Select(i => new { i.Name, i.Aliases }) });
             return Results.Ok(grouped);
         });
 
