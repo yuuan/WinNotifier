@@ -27,12 +27,13 @@ uninstall_notify_send() {
   exit 0
 }
 
-app_name="" icon=""
+app_name="" icon="" debug=false
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --install)  install_as_notify_send ;;
     --uninstall) uninstall_notify_send ;;
+    --debug)    debug=true; shift ;;
     -u|--urgency|-t|--expire-time|-c|--category|-r|--replace-id|-n|--app-icon|-h|--hint|-A|--action|--id-fd|--selected-action-fd|--activation-token-fd)
       shift 2 ;;
     -u=*|--urgency=*|-t=*|--expire-time=*|-c=*|--category=*|-r=*|--replace-id=*|-n=*|--app-icon=*|-h=*|--hint=*|-A=*|--action=*)
@@ -81,4 +82,18 @@ if [ -n "$app_name" ]; then
   set -- "$@" -f "$app_name"
 fi
 
-exec winnotify "$@"
+rc=0
+winnotify "$@" || rc=$?
+
+# Suppress connection failures (e.g. outside LAN)
+#   6: Could not resolve host
+#   7: Failed to connect
+#  28: Connection timed out
+if [ "$debug" = true ]; then
+  exit "$rc"
+fi
+
+case "$rc" in
+  0|6|7|28) exit 0 ;;
+  *)        exit "$rc" ;;
+esac

@@ -241,6 +241,6 @@ if [ -n "$token" ]; then
 fi
 
 # Send notification
-curl -s -f $auth_opt -X POST "$endpoint/notify" \
+curl -sS -f $auth_opt -X POST "$endpoint/notify" \
   -H "Content-Type: application/json" \
   -d "$json" > /dev/null
