@@ -27,10 +27,20 @@ public class IconResolver : IIconResolver
             input = mapped;
 
         // Look up in themes by name or alias
-        if (_iconIndex.TryGetValue(input, out var path))
+        var normalized = StripVariationSelectors(input);
+        if (_iconIndex.TryGetValue(normalized, out var path))
+            return Task.FromResult<string?>(path);
+
+        // Try original input (before mapping) without variation selectors
+        if (_iconIndex.TryGetValue(input, out path))
             return Task.FromResult<string?>(path);
 
         return Task.FromResult<string?>(null);
+    }
+
+    private static string StripVariationSelectors(string input)
+    {
+        return input.Replace("\uFE0F", "");
     }
 
     public IReadOnlyList<IconInfo> GetAll() => _allIcons;
@@ -98,8 +108,12 @@ public class IconResolver : IIconResolver
                     all.Add(new IconInfo(icon.Name, fullPath, aliases, themeName));
 
                     index.TryAdd(icon.Name, fullPath);
+                    index.TryAdd(StripVariationSelectors(icon.Name), fullPath);
                     foreach (var alias in aliases)
+                    {
                         index.TryAdd(alias, fullPath);
+                        index.TryAdd(StripVariationSelectors(alias), fullPath);
+                    }
                 }
             }
             catch
