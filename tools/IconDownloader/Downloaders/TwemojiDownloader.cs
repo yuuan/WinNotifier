@@ -23,6 +23,7 @@ public class TwemojiDownloader : IIconSetDownloader
     private readonly HttpClient _httpClient;
 
     public string Name => "Twemoji";
+    public string Category => "theme";
     public string NewVersion => Version;
     public string ExistingMetaPath(string outputDir) => Path.Combine(outputDir, "icons", "themes", Name, "meta.json");
 

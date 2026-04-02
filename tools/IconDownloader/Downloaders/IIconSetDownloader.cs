@@ -5,6 +5,7 @@ namespace IconDownloader.Downloaders;
 public interface IIconSetDownloader
 {
     string Name { get; }
+    string Category { get; } // "theme" or "mapping"
     string NewVersion { get; }
     string ExistingMetaPath(string outputDir);
     Task<DownloadResult> DownloadAsync(

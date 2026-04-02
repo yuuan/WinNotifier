@@ -22,6 +22,7 @@ public class GemojiDownloader : IIconSetDownloader
     private string? _version;
 
     public string Name => "gemoji";
+    public string Category => "mapping";
     public string NewVersion => _version ?? "(latest)";
     public string ExistingMetaPath(string outputDir) => Path.Combine(outputDir, "icons", "mappings", "gemoji.json");
 

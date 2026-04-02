@@ -23,6 +23,7 @@ public class YaruDownloader : IIconSetDownloader
     private readonly HttpClient _httpClient;
 
     public string Name => "Yaru";
+    public string Category => "theme";
     public string NewVersion => $"master ({DateTime.Now:yyyy-MM-dd})";
     public string ExistingMetaPath(string outputDir) => Path.Combine(outputDir, "icons", "themes", Name, "meta.json");
 

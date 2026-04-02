@@ -1,4 +1,6 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using IconDownloader.Downloaders;
 using IconDownloader.Models;
 using IconDownloader.Pages;
@@ -203,6 +205,7 @@ public class WizardForm : Form
                 results.Add(result);
             }
 
+            UpdateConfigJson(downloaders);
             _completePage.SetResults(results, _outputDir);
             ShowPage(2);
         }
@@ -223,6 +226,39 @@ public class WizardForm : Form
             _cts.Dispose();
             _cts = null;
         }
+    }
+
+    private void UpdateConfigJson(List<IIconSetDownloader> downloaders)
+    {
+        var configPath = Path.Combine(_outputDir, "config.json");
+
+        JsonNode? root;
+        if (File.Exists(configPath))
+        {
+            var json = File.ReadAllText(configPath);
+            root = JsonNode.Parse(json) ?? new JsonObject();
+        }
+        else
+        {
+            root = new JsonObject();
+        }
+
+        var icons = root["icons"]?.AsObject() ?? new JsonObject();
+        root["icons"] = icons;
+
+        foreach (var downloader in downloaders)
+        {
+            var key = downloader.Category == "theme" ? "themes" : "mappings";
+            var array = icons[key]?.AsArray() ?? new JsonArray();
+            icons[key] = array;
+
+            var existing = array.Select(n => n?.GetValue<string>()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (!existing.Contains(downloader.Name))
+                array.Add(downloader.Name);
+        }
+
+        var options = new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+        File.WriteAllText(configPath, root.ToJsonString(options));
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
